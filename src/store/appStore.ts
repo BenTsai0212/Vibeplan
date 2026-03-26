@@ -26,6 +26,7 @@ interface AppStore {
   // Ticket actions
   addTicket: (projectId: string, ticket: Omit<Ticket, 'id' | 'createdAt'>) => Promise<Ticket>
   updateTicketStatus: (projectId: string, ticketId: string, status: Ticket['status']) => Promise<void>
+  updateTicket: (projectId: string, ticket: Ticket) => Promise<void>
   deleteTicket: (projectId: string, ticketId: string) => Promise<void>
   convertMessageToTicket: (
     projectId: string,
@@ -160,6 +161,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
           ? { ...p, tickets: p.tickets.map((t) => t.id === ticketId ? updated : t) }
+          : p
+      ),
+    }))
+  },
+
+  updateTicket: async (projectId: string, ticket: Ticket) => {
+    await localStorageAdapter.updateTicket(projectId, ticket)
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, tickets: p.tickets.map((t) => t.id === ticket.id ? ticket : t) }
           : p
       ),
     }))
