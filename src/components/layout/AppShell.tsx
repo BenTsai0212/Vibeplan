@@ -57,7 +57,7 @@ function GitHubContextPanel({ projectId }: { projectId: string }) {
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-72 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl z-20">
+        <div className="absolute top-full right-0 mt-1 w-72 bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl z-20">
           <p className="text-xs font-mono text-zinc-400 mb-2">GitHub Repository URL</p>
           <input
             className="w-full bg-zinc-800 text-zinc-100 text-xs font-mono rounded px-2 py-1.5 border border-zinc-700 focus:border-[#7c6dfa] outline-none mb-2"
@@ -89,8 +89,18 @@ function GitHubContextPanel({ projectId }: { projectId: string }) {
   )
 }
 
+function HamburgerIcon() {
+  return (
+    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  )
+}
+
 export function AppShell() {
   const { init, mounted, activeProject, activeView } = useAppStore()
+  const [showSidebar, setShowSidebar] = useState(false)
+  const [mobileTab, setMobileTab] = useState<'chat' | 'tickets'>('chat')
 
   useEffect(() => {
     init()
@@ -106,23 +116,62 @@ export function AppShell() {
 
   const project = activeProject()
 
+  /* ── Mobile sidebar drawer (shared) ── */
+  const SidebarDrawer = showSidebar ? (
+    <div className="fixed inset-0 z-50 lg:hidden">
+      <div className="absolute inset-0 bg-black/60" onClick={() => setShowSidebar(false)} />
+      <div className="absolute left-0 top-0 h-full w-[220px] z-10">
+        <Sidebar onClose={() => setShowSidebar(false)} />
+      </div>
+    </div>
+  ) : null
+
+  /* ── Mobile header bar ── */
+  const MobileHeader = (
+    <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-zinc-800 shrink-0">
+      <button
+        onClick={() => setShowSidebar(true)}
+        className="text-zinc-400 hover:text-zinc-200 transition-colors"
+      >
+        <HamburgerIcon />
+      </button>
+      <span className="text-sm font-mono text-zinc-200 truncate flex-1">
+        {project?.name ?? 'Vibe Planner'}
+      </span>
+      {project && activeView === 'project' && <GitHubContextPanel projectId={project.id} />}
+    </div>
+  )
+
   if (activeView === 'role') {
     return (
-      <div className="h-screen bg-zinc-950 text-zinc-100 grid grid-cols-[220px_1fr] overflow-hidden">
-        <Sidebar />
+      <div className="h-screen bg-zinc-950 text-zinc-100 flex flex-col lg:grid lg:grid-cols-[220px_1fr] overflow-hidden">
+        {SidebarDrawer}
+        {MobileHeader}
+        <div className="hidden lg:flex lg:flex-col">
+          <Sidebar />
+        </div>
         <RoleBoard />
       </div>
     )
   }
 
   return (
-    <div className="h-screen bg-zinc-950 text-zinc-100 grid grid-cols-[220px_1fr_300px] overflow-hidden">
-      <Sidebar />
+    <div className="h-screen bg-zinc-950 text-zinc-100 flex flex-col lg:grid lg:grid-cols-[220px_1fr_300px] overflow-hidden">
+      {SidebarDrawer}
+      {MobileHeader}
 
-      <main className="flex flex-col min-w-0 border-r border-zinc-800">
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex lg:flex-col">
+        <Sidebar />
+      </div>
+
+      {/* Main chat area */}
+      <main className={`flex-col min-w-0 border-r border-zinc-800 flex-1 lg:flex-none ${
+        mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'
+      }`}>
         {project ? (
           <>
-            <div className="px-6 py-3 border-b border-zinc-800 flex items-center gap-3">
+            <div className="hidden lg:flex px-6 py-3 border-b border-zinc-800 items-center gap-3">
               <h1 className="text-sm font-mono font-medium text-zinc-200 truncate flex-1">{project.name}</h1>
               <GitHubContextPanel projectId={project.id} />
             </div>
@@ -145,7 +194,32 @@ export function AppShell() {
         )}
       </main>
 
-      <TicketPanel />
+      {/* Ticket panel */}
+      <div className={`flex-col flex-1 lg:flex-none ${
+        mobileTab === 'tickets' ? 'flex' : 'hidden lg:flex'
+      }`}>
+        <TicketPanel />
+      </div>
+
+      {/* Mobile bottom tab bar */}
+      <div className="lg:hidden flex border-t border-zinc-800 bg-zinc-950 shrink-0">
+        <button
+          onClick={() => setMobileTab('chat')}
+          className={`flex-1 py-3 text-xs font-mono transition-colors ${
+            mobileTab === 'chat' ? 'text-[#7c6dfa]' : 'text-zinc-600 hover:text-zinc-400'
+          }`}
+        >
+          Chat
+        </button>
+        <button
+          onClick={() => setMobileTab('tickets')}
+          className={`flex-1 py-3 text-xs font-mono transition-colors ${
+            mobileTab === 'tickets' ? 'text-[#7c6dfa]' : 'text-zinc-600 hover:text-zinc-400'
+          }`}
+        >
+          Tickets
+        </button>
+      </div>
     </div>
   )
 }

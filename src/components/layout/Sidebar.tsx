@@ -6,7 +6,11 @@ import { ProjectCard } from '@/components/project/ProjectCard'
 import { ProjectCreateModal } from '@/components/project/ProjectCreateModal'
 import { RoleCreateModal } from '@/components/roles/RoleCreateModal'
 
-export function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void
+}
+
+export function Sidebar({ onClose }: SidebarProps = {}) {
   const { projects, activeProjectId, activeRoleId, activeView, roles, setActiveRole, createRole } = useAppStore()
   const [showCreate, setShowCreate] = useState(false)
   const [showRoleCreate, setShowRoleCreate] = useState(false)
@@ -44,11 +48,12 @@ export function Sidebar() {
           </div>
         ) : (
           projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              isActive={activeView === 'project' && project.id === activeProjectId}
-            />
+            <div key={project.id} onClick={() => onClose?.()}>
+              <ProjectCard
+                project={project}
+                isActive={activeView === 'project' && project.id === activeProjectId}
+              />
+            </div>
           ))
         )}
       </div>
@@ -73,7 +78,7 @@ export function Sidebar() {
         {roles.map((role) => (
           <button
             key={role.id}
-            onClick={() => setActiveRole(role.id)}
+            onClick={() => { setActiveRole(role.id); onClose?.() }}
             className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-left transition-colors ${
               activeView === 'role' && activeRoleId === role.id
                 ? 'bg-zinc-800 text-zinc-100'

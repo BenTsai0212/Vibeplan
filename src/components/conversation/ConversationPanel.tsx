@@ -29,12 +29,24 @@ export function ConversationPanel({ projectId, phase }: Props) {
   const [streaming, setStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const shouldAutoScrollRef = useRef(true)
+
+  function handleScroll() {
+    const el = scrollContainerRef.current
+    if (!el) return
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+    shouldAutoScrollRef.current = distFromBottom < 100
+  }
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (shouldAutoScrollRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
   }, [messages.length, streamingContent])
 
   async function handleSend(content: string) {
+    shouldAutoScrollRef.current = true
     await addMessage(projectId, phase, 'user', content)
 
     setStreaming(true)
@@ -114,7 +126,7 @@ export function ConversationPanel({ projectId, phase }: Props) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
         {messages.length === 0 && !streaming && (
           <div className="text-center pt-12">
             <div
