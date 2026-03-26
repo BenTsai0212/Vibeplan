@@ -144,10 +144,10 @@ export function AppShell() {
 
   if (activeView === 'role') {
     return (
-      <div className="h-screen bg-zinc-950 text-zinc-100 flex flex-col lg:grid lg:grid-cols-[220px_1fr] overflow-hidden">
+      <div className="h-screen bg-zinc-950 text-zinc-100 flex flex-col lg:grid lg:grid-cols-[220px_1fr] lg:grid-rows-[1fr] overflow-hidden">
         {SidebarDrawer}
         {MobileHeader}
-        <div className="hidden lg:flex lg:flex-col">
+        <div className="hidden lg:flex lg:flex-col overflow-hidden">
           <Sidebar />
         </div>
         <RoleBoard />
@@ -156,22 +156,22 @@ export function AppShell() {
   }
 
   return (
-    <div className="h-screen bg-zinc-950 text-zinc-100 flex flex-col lg:grid lg:grid-cols-[220px_1fr_300px] overflow-hidden">
+    <div className="h-screen bg-zinc-950 text-zinc-100 flex flex-col lg:grid lg:grid-cols-[220px_1fr_300px] lg:grid-rows-[1fr] overflow-hidden">
       {SidebarDrawer}
       {MobileHeader}
 
       {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-col">
+      <div className="hidden lg:flex lg:flex-col overflow-hidden">
         <Sidebar />
       </div>
 
       {/* Main chat area */}
-      <main className={`flex-col min-w-0 border-r border-zinc-800 flex-1 lg:flex-none ${
-        mobileTab === 'chat' ? 'flex' : 'hidden lg:flex'
+      <main className={`flex flex-col min-w-0 overflow-hidden border-r border-zinc-800 flex-1 lg:flex-none ${
+        mobileTab === 'chat' ? '' : 'hidden lg:flex'
       }`}>
         {project ? (
           <>
-            <div className="hidden lg:flex px-6 py-3 border-b border-zinc-800 items-center gap-3">
+            <div className="hidden lg:flex px-6 py-3 border-b border-zinc-800 items-center gap-3 shrink-0">
               <h1 className="text-sm font-mono font-medium text-zinc-200 truncate flex-1">{project.name}</h1>
               <GitHubContextPanel projectId={project.id} />
             </div>
@@ -195,8 +195,8 @@ export function AppShell() {
       </main>
 
       {/* Ticket panel */}
-      <div className={`flex-col flex-1 lg:flex-none min-h-0 overflow-hidden ${
-        mobileTab === 'tickets' ? 'flex' : 'hidden lg:flex'
+      <div className={`flex flex-col overflow-hidden flex-1 lg:flex-none ${
+        mobileTab === 'tickets' ? '' : 'hidden lg:flex'
       }`}>
         <TicketPanel />
       </div>
