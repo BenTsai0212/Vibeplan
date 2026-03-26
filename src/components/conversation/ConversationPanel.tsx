@@ -26,6 +26,11 @@ export function ConversationPanel({ projectId, phase }: Props) {
   const messages = conversation?.messages ?? []
   const githubContext = project?.githubContext
 
+  // Collect other phases' recent messages as background context
+  const priorPhaseContext = project?.conversations
+    .filter((c) => c.phase !== phase && c.messages.length > 0)
+    .map((c) => ({ phase: c.phase, messages: c.messages.slice(-8) }))
+
   const [streaming, setStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -60,6 +65,7 @@ export function ConversationPanel({ projectId, phase }: Props) {
           phase,
           messages: [...messages, { id: '', role: 'user', content, createdAt: '' }],
           githubContext,
+          priorPhaseContext,
         }),
       })
 
