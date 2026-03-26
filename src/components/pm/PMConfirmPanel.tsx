@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { PMProposedTicket, Phase, AgentId } from '@/types'
+import type { PMProposedTicket, Phase } from '@/types'
 import { AgentBadge } from '@/components/tickets/AgentBadge'
 import { useAppStore } from '@/store/appStore'
 
@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function PMConfirmPanel({ projectId, currentPhase, thinking, proposed, onClose }: Props) {
-  const { addTicket } = useAppStore()
+  const { addTicket, roles } = useAppStore()
   const [selected, setSelected] = useState<Set<number>>(new Set(proposed.map((_, i) => i)))
   const [submitting, setSubmitting] = useState(false)
 
@@ -27,6 +27,14 @@ export function PMConfirmPanel({ projectId, currentPhase, thinking, proposed, on
     })
   }
 
+  // Match PM's role name string back to a Role.id
+  function resolveRoleId(assignTo: string): string | null {
+    const match = roles.find(
+      (r) => r.name === assignTo || r.name.toLowerCase() === assignTo.toLowerCase()
+    )
+    return match?.id ?? null
+  }
+
   async function handleConfirm() {
     setSubmitting(true)
     for (const i of selected) {
@@ -36,7 +44,7 @@ export function PMConfirmPanel({ projectId, currentPhase, thinking, proposed, on
         title: t.title,
         reason: t.reason,
         phase: currentPhase,
-        assignedTo: t.assignTo as AgentId,
+        assignedTo: resolveRoleId(t.assignTo),
         status: 'todo',
         createdBy: 'pm',
         contextSnippet: '',
@@ -65,33 +73,40 @@ export function PMConfirmPanel({ projectId, currentPhase, thinking, proposed, on
 
           <div className="space-y-2">
             <p className="text-xs text-zinc-500 font-mono">提議的 Tickets（勾選要建立的）</p>
-            {proposed.map((t, i) => (
-              <label
-                key={i}
-                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  selected.has(i)
-                    ? 'border-[#7c6dfa] bg-[#7c6dfa0d]'
-                    : 'border-zinc-800 bg-zinc-900'
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(i)}
-                  onChange={() => toggle(i)}
-                  className="mt-0.5 accent-[#7c6dfa]"
-                />
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-mono text-zinc-100">{t.title}</p>
-                  <p className="text-xs text-zinc-500">{t.reason}</p>
-                  <div className="flex gap-2 items-center">
-                    <AgentBadge agentId={t.assignTo as AgentId} />
-                    <span className={`text-xs font-mono ${
-                      t.priority === 'high' ? 'text-red-400' : t.priority === 'medium' ? 'text-yellow-400' : 'text-zinc-500'
-                    }`}>{t.priority}</span>
+            {proposed.map((t, i) => {
+              const roleId = resolveRoleId(t.assignTo)
+              return (
+                <label
+                  key={i}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                    selected.has(i)
+                      ? 'border-[#7c6dfa] bg-[#7c6dfa0d]'
+                      : 'border-zinc-800 bg-zinc-900'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(i)}
+                    onChange={() => toggle(i)}
+                    className="mt-0.5 accent-[#7c6dfa]"
+                  />
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-mono text-zinc-100">{t.title}</p>
+                    <p className="text-xs text-zinc-500">{t.reason}</p>
+                    <div className="flex gap-2 items-center">
+                      {roleId ? (
+                        <AgentBadge agentId={roleId} />
+                      ) : (
+                        <span className="text-xs font-mono text-zinc-600">{t.assignTo}</span>
+                      )}
+                      <span className={`text-xs font-mono ${
+                        t.priority === 'high' ? 'text-red-400' : t.priority === 'medium' ? 'text-yellow-400' : 'text-zinc-500'
+                      }`}>{t.priority}</span>
+                    </div>
                   </div>
-                </div>
-              </label>
-            ))}
+                </label>
+              )
+            })}
           </div>
         </div>
 

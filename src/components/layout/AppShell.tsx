@@ -6,9 +6,10 @@ import { Sidebar } from './Sidebar'
 import { PhaseTabBar } from '@/components/project/PhaseTabBar'
 import { ConversationPanel } from '@/components/conversation/ConversationPanel'
 import { TicketPanel } from '@/components/tickets/TicketPanel'
+import { RoleBoard } from '@/components/roles/RoleBoard'
 
 export function AppShell() {
-  const { init, mounted, activeProject } = useAppStore()
+  const { init, mounted, activeProject, activeView } = useAppStore()
 
   useEffect(() => {
     init()
@@ -23,6 +24,15 @@ export function AppShell() {
   }
 
   const project = activeProject()
+
+  if (activeView === 'role') {
+    return (
+      <div className="h-screen bg-zinc-950 text-zinc-100 grid grid-cols-[220px_1fr] overflow-hidden">
+        <Sidebar />
+        <RoleBoard />
+      </div>
+    )
+  }
 
   return (
     <div className="h-screen bg-zinc-950 text-zinc-100 grid grid-cols-[220px_1fr_300px] overflow-hidden">

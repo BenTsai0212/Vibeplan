@@ -8,6 +8,7 @@ import { useAppStore } from '@/store/appStore'
 
 export function PMButton({ projectId, currentPhase }: { projectId: string; currentPhase: Phase }) {
   const activeProject = useAppStore((s) => s.activeProject())
+  const roles = useAppStore((s) => s.roles)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PMAnalyzeResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -23,6 +24,7 @@ export function PMButton({ projectId, currentPhase }: { projectId: string; curre
         body: JSON.stringify({
           conversations: activeProject.conversations,
           tickets: activeProject.tickets,
+          roles,
         }),
       })
       if (!res.ok) {

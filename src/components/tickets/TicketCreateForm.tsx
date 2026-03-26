@@ -1,15 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import type { AgentId, Phase } from '@/types'
+import type { Phase } from '@/types'
 import { useAppStore } from '@/store/appStore'
-
-const AGENT_OPTIONS: { id: AgentId; label: string }[] = [
-  { id: 'fe', label: 'Frontend' },
-  { id: 'be', label: 'Backend' },
-  { id: 'ux', label: 'UX' },
-  { id: 'pm', label: 'PM' },
-]
 
 interface Props {
   projectId: string
@@ -19,10 +12,10 @@ interface Props {
 }
 
 export function TicketCreateForm({ projectId, currentPhase, prefill, onClose }: Props) {
-  const { addTicket } = useAppStore()
+  const { addTicket, roles } = useAppStore()
   const [title, setTitle] = useState(prefill?.title ?? '')
   const [reason, setReason] = useState(prefill?.reason ?? '')
-  const [assignedTo, setAssignedTo] = useState<AgentId | null>(null)
+  const [assignedTo, setAssignedTo] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -59,18 +52,19 @@ export function TicketCreateForm({ projectId, currentPhase, prefill, onClose }: 
         className="w-full bg-transparent border border-zinc-700 rounded px-3 py-2 text-sm font-mono text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-[#7c6dfa] resize-none"
       />
       <div className="flex gap-2 flex-wrap">
-        {AGENT_OPTIONS.map((opt) => (
+        {roles.map((role) => (
           <button
-            key={opt.id}
+            key={role.id}
             type="button"
-            onClick={() => setAssignedTo(assignedTo === opt.id ? null : opt.id)}
-            className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${
-              assignedTo === opt.id
-                ? 'bg-[#7c6dfa] text-white'
-                : 'border border-zinc-700 text-zinc-400 hover:border-zinc-500'
-            }`}
+            onClick={() => setAssignedTo(assignedTo === role.id ? null : role.id)}
+            className="px-2.5 py-1 rounded text-xs font-mono transition-colors"
+            style={
+              assignedTo === role.id
+                ? { backgroundColor: role.color, color: '#fff' }
+                : { border: `1px solid ${role.color}40`, color: role.color }
+            }
           >
-            {opt.label}
+            {role.name}
           </button>
         ))}
       </div>

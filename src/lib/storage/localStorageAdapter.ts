@@ -1,7 +1,8 @@
-import type { Project, Conversation, Ticket } from '@/types'
+import type { Project, Conversation, Ticket, Role } from '@/types'
 import type { StorageAdapter } from './adapter'
 
 const STORAGE_KEY = 'vibeplan_projects'
+const ROLES_KEY = 'vibeplan_roles'
 
 function loadAll(): Project[] {
   if (typeof window === 'undefined') return []
@@ -73,5 +74,29 @@ export const localStorageAdapter: StorageAdapter = {
     if (!project) return
     project.tickets = project.tickets.filter((t) => t.id !== ticketId)
     saveAll(all)
+  },
+
+  async getRoles() {
+    if (typeof window === 'undefined') return []
+    const raw = localStorage.getItem(ROLES_KEY)
+    return raw ? JSON.parse(raw) : []
+  },
+
+  async saveRole(r: Role) {
+    if (typeof window === 'undefined') return
+    const roles: Role[] = await this.getRoles()
+    const idx = roles.findIndex((x) => x.id === r.id)
+    if (idx >= 0) {
+      roles[idx] = r
+    } else {
+      roles.push(r)
+    }
+    localStorage.setItem(ROLES_KEY, JSON.stringify(roles))
+  },
+
+  async deleteRole(id: string) {
+    if (typeof window === 'undefined') return
+    const roles: Role[] = await this.getRoles()
+    localStorage.setItem(ROLES_KEY, JSON.stringify(roles.filter((r) => r.id !== id)))
   },
 }

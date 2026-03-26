@@ -1,7 +1,13 @@
 export type Phase = 'research' | 'plan' | 'execute' | 'review'
-export type AgentId = 'fe' | 'be' | 'ux' | 'pm'
 export type TicketStatus = 'todo' | 'in_progress' | 'done'
 export type MessageRole = 'user' | 'assistant'
+
+export interface Role {
+  id: string
+  name: string
+  color: string
+  createdAt: string
+}
 
 export interface Message {
   id: string
@@ -24,7 +30,7 @@ export interface Ticket {
   title: string
   reason: string
   phase: Phase
-  assignedTo: AgentId | null
+  assignedTo: string | null   // Role.id
   status: TicketStatus
   createdBy: 'user' | 'pm'
   contextSnippet: string
@@ -45,12 +51,13 @@ export interface Project {
 export interface PMAnalyzeRequest {
   conversations: Conversation[]
   tickets: Ticket[]
+  roles: Role[]
 }
 
 export interface PMProposedTicket {
   title: string
   reason: string
-  assignTo: AgentId
+  assignTo: string   // role name (matched to Role.id in frontend)
   priority: 'high' | 'medium' | 'low'
 }
 

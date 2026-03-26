@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Ticket, AgentId } from '@/types'
+import type { Ticket } from '@/types'
 import { AgentBadge } from './AgentBadge'
 import { useAppStore } from '@/store/appStore'
 
@@ -29,20 +29,12 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: 'text-zinc-500',
 }
 
-const AGENT_OPTIONS: { value: AgentId | ''; label: string }[] = [
-  { value: '', label: '未指派' },
-  { value: 'fe', label: 'Frontend' },
-  { value: 'be', label: 'Backend' },
-  { value: 'ux', label: 'UX' },
-  { value: 'pm', label: 'PM' },
-]
-
 export function TicketCard({ ticket, projectId }: { ticket: Ticket; projectId: string }) {
-  const { updateTicketStatus, updateTicket, deleteTicket } = useAppStore()
+  const { updateTicketStatus, updateTicket, deleteTicket, roles } = useAppStore()
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(ticket.title)
   const [reason, setReason] = useState(ticket.reason)
-  const [assignedTo, setAssignedTo] = useState<AgentId | ''>(ticket.assignedTo ?? '')
+  const [assignedTo, setAssignedTo] = useState<string>(ticket.assignedTo ?? '')
   const [priority, setPriority] = useState<Ticket['priority'] | ''>(ticket.priority ?? '')
 
   function handleSave() {
@@ -84,10 +76,11 @@ export function TicketCard({ ticket, projectId }: { ticket: Ticket; projectId: s
           <select
             className="flex-1 bg-zinc-800 text-zinc-300 text-xs font-mono rounded px-2 py-1.5 border border-zinc-700 focus:border-[#7c6dfa] outline-none"
             value={assignedTo}
-            onChange={(e) => setAssignedTo(e.target.value as AgentId | '')}
+            onChange={(e) => setAssignedTo(e.target.value)}
           >
-            {AGENT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+            <option value="">未指派</option>
+            {roles.map((r) => (
+              <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
           <select

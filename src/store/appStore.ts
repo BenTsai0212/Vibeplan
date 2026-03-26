@@ -1,15 +1,29 @@
 import { create } from 'zustand'
-import type { Project, Phase, Message, Ticket, AgentId, Conversation } from '@/types'
+import type { Project, Phase, Message, Ticket, Conversation, Role } from '@/types'
 import { localStorageAdapter } from '@/lib/storage/localStorageAdapter'
 import { createId, nowISO } from '@/lib/utils'
+
+const DEFAULT_ROLES: Omit<Role, 'id' | 'createdAt'>[] = [
+  { name: '工程師', color: '#60a5fa' },
+  { name: '設計師', color: '#f472b6' },
+  { name: '行銷', color: '#fb923c' },
+  { name: '市調', color: '#a78bfa' },
+]
 
 interface AppStore {
   projects: Project[]
   activeProjectId: string | null
   mounted: boolean
 
+  // Roles
+  roles: Role[]
+  activeView: 'project' | 'role'
+  activeRoleId: string | null
+
   // Derived
   activeProject: () => Project | null
+  activeRole: () => Role | null
+  getTicketsByRole: (roleId: string) => { ticket: Ticket; project: Project }[]
 
   // Init
   init: () => Promise<void>
@@ -32,23 +46,65 @@ interface AppStore {
     projectId: string,
     phase: Phase,
     message: Message,
-    extra: { title: string; reason: string; assignedTo: AgentId | null }
+    extra: { title: string; reason: string; assignedTo: string | null }
   ) => Promise<Ticket>
+
+  // Role actions
+  createRole: (name: string, color: string) => Promise<Role>
+  updateRole: (role: Role) => Promise<void>
+  deleteRole: (id: string) => Promise<void>
+  setActiveRole: (id: string) => void
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
   projects: [],
   activeProjectId: null,
   mounted: false,
+  roles: [],
+  activeView: 'project',
+  activeRoleId: null,
 
   activeProject: () => {
     const { projects, activeProjectId } = get()
     return projects.find((p) => p.id === activeProjectId) ?? null
   },
 
+  activeRole: () => {
+    const { roles, activeRoleId } = get()
+    return roles.find((r) => r.id === activeRoleId) ?? null
+  },
+
+  getTicketsByRole: (roleId: string) => {
+    const { projects } = get()
+    const result: { ticket: Ticket; project: Project }[] = []
+    for (const project of projects) {
+      for (const ticket of project.tickets) {
+        if (ticket.assignedTo === roleId) {
+          result.push({ ticket, project })
+        }
+      }
+    }
+    return result
+  },
+
   init: async () => {
-    const projects = await localStorageAdapter.getProjects()
-    set({ projects, mounted: true })
+    const [projects, existingRoles] = await Promise.all([
+      localStorageAdapter.getProjects(),
+      localStorageAdapter.getRoles(),
+    ])
+
+    let roles = existingRoles
+    if (roles.length === 0) {
+      roles = await Promise.all(
+        DEFAULT_ROLES.map(async (r) => {
+          const role: Role = { id: createId(), name: r.name, color: r.color, createdAt: nowISO() }
+          await localStorageAdapter.saveRole(role)
+          return role
+        })
+      )
+    }
+
+    set({ projects, roles, mounted: true })
   },
 
   createProject: async (name: string) => {
@@ -62,12 +118,12 @@ export const useAppStore = create<AppStore>((set, get) => ({
       tickets: [],
     }
     await localStorageAdapter.saveProject(project)
-    set((state) => ({ projects: [...state.projects, project], activeProjectId: project.id }))
+    set((state) => ({ projects: [...state.projects, project], activeProjectId: project.id, activeView: 'project' }))
     return project
   },
 
   setActiveProject: (id: string) => {
-    set({ activeProjectId: id })
+    set({ activeProjectId: id, activeView: 'project', activeRoleId: null })
   },
 
   deleteProject: async (id: string) => {
@@ -200,5 +256,32 @@ export const useAppStore = create<AppStore>((set, get) => ({
       contextSnippet: message.content.slice(0, 200),
     })
     return ticket
+  },
+
+  createRole: async (name: string, color: string) => {
+    const role: Role = { id: createId(), name, color, createdAt: nowISO() }
+    await localStorageAdapter.saveRole(role)
+    set((state) => ({ roles: [...state.roles, role] }))
+    return role
+  },
+
+  updateRole: async (role: Role) => {
+    await localStorageAdapter.saveRole(role)
+    set((state) => ({
+      roles: state.roles.map((r) => r.id === role.id ? role : r),
+    }))
+  },
+
+  deleteRole: async (id: string) => {
+    await localStorageAdapter.deleteRole(id)
+    set((state) => ({
+      roles: state.roles.filter((r) => r.id !== id),
+      activeRoleId: state.activeRoleId === id ? null : state.activeRoleId,
+      activeView: state.activeRoleId === id ? 'project' : state.activeView,
+    }))
+  },
+
+  setActiveRole: (id: string) => {
+    set({ activeRoleId: id, activeView: 'role' })
   },
 }))
