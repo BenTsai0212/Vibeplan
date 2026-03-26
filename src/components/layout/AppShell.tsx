@@ -176,7 +176,7 @@ export function AppShell() {
               <GitHubContextPanel projectId={project.id} />
             </div>
             <PhaseTabBar />
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-hidden">
               <ConversationPanel
                 key={`${project.id}-${project.currentPhase}`}
                 projectId={project.id}
@@ -195,7 +195,7 @@ export function AppShell() {
       </main>
 
       {/* Ticket panel */}
-      <div className={`flex-col flex-1 lg:flex-none ${
+      <div className={`flex-col flex-1 lg:flex-none min-h-0 overflow-hidden ${
         mobileTab === 'tickets' ? 'flex' : 'hidden lg:flex'
       }`}>
         <TicketPanel />

@@ -140,7 +140,7 @@ export function TicketPanel() {
       </div>
 
       {/* Phase groups */}
-      <div className="flex-1 overflow-y-auto px-3 py-2">
+      <div className="flex-1 min-h-0 overflow-y-auto px-3 py-2">
         {filteredTickets.length === 0 && statusFilter === 'all' ? (
           <p className="text-xs text-zinc-700 font-mono text-center pt-8">還沒有 tickets</p>
         ) : (

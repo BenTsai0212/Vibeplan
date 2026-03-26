@@ -126,7 +126,7 @@ export function ConversationPanel({ projectId, phase }: Props) {
         </button>
       </div>
 
-      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
         {messages.length === 0 && !streaming && (
           <div className="text-center pt-12">
             <div
