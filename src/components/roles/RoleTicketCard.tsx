@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import type { Ticket, Phase } from '@/types'
 import { useAppStore } from '@/store/appStore'
+import { TicketWorkLog } from '@/components/tickets/TicketWorkLog'
 
 const STATUS_CYCLE: Record<Ticket['status'], Ticket['status']> = {
   todo: 'in_progress',
@@ -44,6 +45,7 @@ interface Props {
 export function RoleTicketCard({ ticket, projectId, projectName }: Props) {
   const { updateTicketStatus, updateTicket, deleteTicket } = useAppStore()
   const [editing, setEditing] = useState(false)
+  const [showLog, setShowLog] = useState(false)
   const [title, setTitle] = useState(ticket.title)
   const [reason, setReason] = useState(ticket.reason)
 
@@ -124,6 +126,18 @@ export function RoleTicketCard({ ticket, projectId, projectName }: Props) {
           {STATUS_LABELS[ticket.status]}
         </button>
       </div>
+
+      <button
+        onClick={() => setShowLog((v) => !v)}
+        className="mt-2 text-[11px] font-mono text-zinc-600 hover:text-zinc-400 transition-colors"
+      >
+        {showLog ? '▲' : '▼'} 進度記錄
+        {(ticket.workLogs?.length ?? 0) > 0 && (
+          <span className="ml-1 text-zinc-500">({ticket.workLogs!.length})</span>
+        )}
+      </button>
+
+      {showLog && <TicketWorkLog ticket={ticket} projectId={projectId} />}
     </div>
   )
 }

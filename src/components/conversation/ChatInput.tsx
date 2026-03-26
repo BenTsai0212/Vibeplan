@@ -3,22 +3,21 @@
 import { useState, useRef } from 'react'
 
 interface Props {
-  onSend: (content: string, role: 'user' | 'assistant') => Promise<void>
+  onSend: (content: string) => Promise<void>
   disabled?: boolean
 }
 
 export function ChatInput({ onSend, disabled }: Props) {
   const [content, setContent] = useState('')
-  const [role, setRole] = useState<'user' | 'assistant'>('user')
   const [sending, setSending] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   async function handleSend() {
     const text = content.trim()
-    if (!text || sending) return
+    if (!text || sending || disabled) return
     setSending(true)
-    await onSend(text, role)
     setContent('')
+    await onSend(text)
     setSending(false)
     textareaRef.current?.focus()
   }
@@ -31,37 +30,14 @@ export function ChatInput({ onSend, disabled }: Props) {
   }
 
   return (
-    <div className="border-t border-zinc-800 p-4 space-y-2">
-      <div className="flex gap-2">
-        <button
-          onClick={() => setRole('user')}
-          className={`text-xs font-mono px-3 py-1 rounded-full transition-colors ${
-            role === 'user'
-              ? 'bg-[#7c6dfa] text-white'
-              : 'border border-zinc-700 text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          You
-        </button>
-        <button
-          onClick={() => setRole('assistant')}
-          className={`text-xs font-mono px-3 py-1 rounded-full transition-colors ${
-            role === 'assistant'
-              ? 'bg-zinc-700 text-zinc-100'
-              : 'border border-zinc-700 text-zinc-500 hover:text-zinc-300'
-          }`}
-        >
-          Agent
-        </button>
-      </div>
-
+    <div className="border-t border-zinc-800 p-4">
       <div className="flex gap-2 items-end">
         <textarea
           ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={role === 'user' ? '輸入你的訊息... (⌘↵ 送出)' : '輸入 Agent 的回應...'}
+          placeholder="輸入訊息... (⌘↵ 送出)"
           rows={3}
           disabled={disabled || sending}
           className="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-3 text-sm font-mono text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-[#7c6dfa] resize-none disabled:opacity-50 transition-colors"

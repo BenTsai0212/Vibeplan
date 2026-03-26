@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Project, Phase, Message, Ticket, Conversation, Role } from '@/types'
+import type { Project, Phase, Message, Ticket, Conversation, Role, WorkLog } from '@/types'
 import { localStorageAdapter } from '@/lib/storage/localStorageAdapter'
 import { createId, nowISO } from '@/lib/utils'
 
@@ -36,6 +36,10 @@ interface AppStore {
 
   // Conversation actions
   addMessage: (projectId: string, phase: Phase, role: Message['role'], content: string) => Promise<void>
+  clearConversation: (projectId: string, phase: Phase) => Promise<void>
+
+  // Project GitHub
+  updateProjectGithub: (projectId: string, repoUrl: string, context: string) => Promise<void>
 
   // Ticket actions
   addTicket: (projectId: string, ticket: Omit<Ticket, 'id' | 'createdAt'>) => Promise<Ticket>
@@ -48,6 +52,10 @@ interface AppStore {
     message: Message,
     extra: { title: string; reason: string; assignedTo: string | null }
   ) => Promise<Ticket>
+
+  // Work log actions
+  addWorkLog: (projectId: string, ticketId: string, content: string, author?: string) => Promise<void>
+  deleteWorkLog: (projectId: string, ticketId: string, logId: string) => Promise<void>
 
   // Role actions
   createRole: (name: string, color: string) => Promise<Role>
@@ -189,6 +197,32 @@ export const useAppStore = create<AppStore>((set, get) => ({
     }))
   },
 
+  clearConversation: async (projectId: string, phase: Phase) => {
+    const project = get().projects.find((p) => p.id === projectId)
+    if (!project) return
+    const updated: Project = {
+      ...project,
+      conversations: project.conversations.map((c) =>
+        c.phase === phase ? { ...c, messages: [] } : c
+      ),
+      updatedAt: nowISO(),
+    }
+    await localStorageAdapter.saveProject(updated)
+    set((state) => ({
+      projects: state.projects.map((p) => p.id === projectId ? updated : p),
+    }))
+  },
+
+  updateProjectGithub: async (projectId: string, repoUrl: string, context: string) => {
+    const project = get().projects.find((p) => p.id === projectId)
+    if (!project) return
+    const updated: Project = { ...project, githubRepoUrl: repoUrl, githubContext: context, updatedAt: nowISO() }
+    await localStorageAdapter.saveProject(updated)
+    set((state) => ({
+      projects: state.projects.map((p) => p.id === projectId ? updated : p),
+    }))
+  },
+
   addTicket: async (projectId: string, ticketData: Omit<Ticket, 'id' | 'createdAt'>) => {
     const ticket: Ticket = {
       ...ticketData,
@@ -256,6 +290,39 @@ export const useAppStore = create<AppStore>((set, get) => ({
       contextSnippet: message.content.slice(0, 200),
     })
     return ticket
+  },
+
+  addWorkLog: async (projectId: string, ticketId: string, content: string, author?: string) => {
+    const project = get().projects.find((p) => p.id === projectId)
+    if (!project) return
+    const ticket = project.tickets.find((t) => t.id === ticketId)
+    if (!ticket) return
+    const log: WorkLog = { id: createId(), content, createdAt: nowISO(), author }
+    const updated = { ...ticket, workLogs: [...(ticket.workLogs ?? []), log] }
+    await localStorageAdapter.updateTicket(projectId, updated)
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, tickets: p.tickets.map((t) => t.id === ticketId ? updated : t) }
+          : p
+      ),
+    }))
+  },
+
+  deleteWorkLog: async (projectId: string, ticketId: string, logId: string) => {
+    const project = get().projects.find((p) => p.id === projectId)
+    if (!project) return
+    const ticket = project.tickets.find((t) => t.id === ticketId)
+    if (!ticket) return
+    const updated = { ...ticket, workLogs: (ticket.workLogs ?? []).filter((l) => l.id !== logId) }
+    await localStorageAdapter.updateTicket(projectId, updated)
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, tickets: p.tickets.map((t) => t.id === ticketId ? updated : t) }
+          : p
+      ),
+    }))
   },
 
   createRole: async (name: string, color: string) => {

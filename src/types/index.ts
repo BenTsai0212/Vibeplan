@@ -24,6 +24,13 @@ export interface Conversation {
   createdAt: string
 }
 
+export interface WorkLog {
+  id: string
+  content: string
+  createdAt: string
+  author?: string
+}
+
 export interface Ticket {
   id: string
   projectId: string
@@ -36,6 +43,7 @@ export interface Ticket {
   contextSnippet: string
   createdAt: string
   priority?: 'high' | 'medium' | 'low'
+  workLogs?: WorkLog[]
 }
 
 export interface Project {
@@ -46,6 +54,8 @@ export interface Project {
   currentPhase: Phase
   conversations: Conversation[]
   tickets: Ticket[]
+  githubRepoUrl?: string
+  githubContext?: string
 }
 
 export interface PMAnalyzeRequest {
