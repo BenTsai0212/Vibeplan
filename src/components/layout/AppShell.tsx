@@ -7,6 +7,7 @@ import { PhaseTabBar } from '@/components/project/PhaseTabBar'
 import { ConversationPanel } from '@/components/conversation/ConversationPanel'
 import { TicketPanel } from '@/components/tickets/TicketPanel'
 import { RoleBoard } from '@/components/roles/RoleBoard'
+import { DocsPanel } from '@/components/docs/DocsPanel'
 
 function GitHubContextPanel({ projectId }: { projectId: string }) {
   const { projects, updateProjectGithub } = useAppStore()
@@ -101,6 +102,7 @@ export function AppShell() {
   const { init, mounted, activeProject, activeView } = useAppStore()
   const [showSidebar, setShowSidebar] = useState(false)
   const [mobileTab, setMobileTab] = useState<'chat' | 'tickets'>('chat')
+  const [showDocs, setShowDocs] = useState(false)
 
   useEffect(() => {
     init()
@@ -175,13 +177,17 @@ export function AppShell() {
               <h1 className="text-sm font-mono font-medium text-zinc-200 truncate flex-1">{project.name}</h1>
               <GitHubContextPanel projectId={project.id} />
             </div>
-            <PhaseTabBar />
+            <PhaseTabBar showDocs={showDocs} onDocsToggle={() => setShowDocs((v) => !v)} />
             <div className="flex-1 min-h-0 overflow-hidden">
-              <ConversationPanel
-                key={`${project.id}-${project.currentPhase}`}
-                projectId={project.id}
-                phase={project.currentPhase}
-              />
+              {showDocs ? (
+                <DocsPanel projectId={project.id} />
+              ) : (
+                <ConversationPanel
+                  key={`${project.id}-${project.currentPhase}`}
+                  projectId={project.id}
+                  phase={project.currentPhase}
+                />
+              )}
             </div>
           </>
         ) : (

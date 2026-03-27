@@ -19,7 +19,12 @@ const PHASE_LABELS: Record<Phase, string> = {
   review: 'Review',
 }
 
-export function PhaseTabBar() {
+interface Props {
+  showDocs: boolean
+  onDocsToggle: () => void
+}
+
+export function PhaseTabBar({ showDocs, onDocsToggle }: Props) {
   const activeProject = useAppStore((s) => s.activeProject())
   const setCurrentPhase = useAppStore((s) => s.setCurrentPhase)
 
@@ -28,12 +33,12 @@ export function PhaseTabBar() {
   return (
     <div className="flex border-b border-zinc-800 px-4">
       {PHASES.map((phase) => {
-        const isActive = activeProject.currentPhase === phase
+        const isActive = !showDocs && activeProject.currentPhase === phase
         const color = PHASE_COLORS[phase]
         return (
           <button
             key={phase}
-            onClick={() => setCurrentPhase(phase)}
+            onClick={() => { setCurrentPhase(phase); if (showDocs) onDocsToggle() }}
             className={`px-4 py-3 text-xs font-mono transition-colors relative ${
               isActive ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'
             }`}
@@ -48,6 +53,19 @@ export function PhaseTabBar() {
           </button>
         )
       })}
+
+      {/* Docs tab */}
+      <button
+        onClick={onDocsToggle}
+        className={`ml-auto px-4 py-3 text-xs font-mono transition-colors relative ${
+          showDocs ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'
+        }`}
+      >
+        Docs
+        {showDocs && (
+          <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-[#7c6dfa]" />
+        )}
+      </button>
     </div>
   )
 }

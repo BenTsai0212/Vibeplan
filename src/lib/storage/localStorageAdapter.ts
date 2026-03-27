@@ -1,4 +1,4 @@
-import type { Project, Conversation, Ticket, Role } from '@/types'
+import type { Project, Conversation, Ticket, Role, ProjectDoc } from '@/types'
 import type { StorageAdapter } from './adapter'
 
 const STORAGE_KEY = 'vibeplan_projects'
@@ -98,5 +98,27 @@ export const localStorageAdapter: StorageAdapter = {
     if (typeof window === 'undefined') return
     const roles: Role[] = await this.getRoles()
     localStorage.setItem(ROLES_KEY, JSON.stringify(roles.filter((r) => r.id !== id)))
+  },
+
+  async saveDoc(projectId: string, doc: ProjectDoc) {
+    const all = loadAll()
+    const project = all.find((p) => p.id === projectId)
+    if (!project) return
+    if (!project.docs) project.docs = []
+    const idx = project.docs.findIndex((d) => d.id === doc.id)
+    if (idx >= 0) {
+      project.docs[idx] = doc
+    } else {
+      project.docs.push(doc)
+    }
+    saveAll(all)
+  },
+
+  async deleteDoc(projectId: string, docId: string) {
+    const all = loadAll()
+    const project = all.find((p) => p.id === projectId)
+    if (!project) return
+    project.docs = (project.docs ?? []).filter((d) => d.id !== docId)
+    saveAll(all)
   },
 }

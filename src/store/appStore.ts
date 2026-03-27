@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import type { Project, Phase, Message, Ticket, Conversation, Role, WorkLog } from '@/types'
-import { localStorageAdapter } from '@/lib/storage/localStorageAdapter'
+import type { Project, Phase, Message, Ticket, Conversation, Role, WorkLog, ProjectDoc } from '@/types'
+import { getStorage } from '@/lib/storage'
 import { createId, nowISO } from '@/lib/utils'
 
 const DEFAULT_ROLES: Omit<Role, 'id' | 'createdAt'>[] = [
@@ -62,6 +62,11 @@ interface AppStore {
   updateRole: (role: Role) => Promise<void>
   deleteRole: (id: string) => Promise<void>
   setActiveRole: (id: string) => void
+
+  // Doc actions
+  createDoc: (projectId: string, title: string) => Promise<ProjectDoc>
+  updateDoc: (projectId: string, doc: ProjectDoc) => Promise<void>
+  deleteDoc: (projectId: string, docId: string) => Promise<void>
 }
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -96,9 +101,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   init: async () => {
+    const storage = getStorage()
     const [projects, existingRoles] = await Promise.all([
-      localStorageAdapter.getProjects(),
-      localStorageAdapter.getRoles(),
+      storage.getProjects(),
+      storage.getRoles(),
     ])
 
     let roles = existingRoles
@@ -106,7 +112,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       roles = await Promise.all(
         DEFAULT_ROLES.map(async (r) => {
           const role: Role = { id: createId(), name: r.name, color: r.color, createdAt: nowISO() }
-          await localStorageAdapter.saveRole(role)
+          await storage.saveRole(role)
           return role
         })
       )
@@ -116,6 +122,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   createProject: async (name: string) => {
+    const storage = getStorage()
     const project: Project = {
       id: createId(),
       name,
@@ -124,8 +131,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
       currentPhase: 'research',
       conversations: [],
       tickets: [],
+      docs: [],
     }
-    await localStorageAdapter.saveProject(project)
+    await storage.saveProject(project)
     set((state) => ({ projects: [...state.projects, project], activeProjectId: project.id, activeView: 'project' }))
     return project
   },
@@ -135,7 +143,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   deleteProject: async (id: string) => {
-    await localStorageAdapter.deleteProject(id)
+    const storage = getStorage()
+    await storage.deleteProject(id)
     set((state) => {
       const projects = state.projects.filter((p) => p.id !== id)
       const activeProjectId = state.activeProjectId === id
@@ -146,16 +155,18 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   setCurrentPhase: async (phase: Phase) => {
+    const storage = getStorage()
     const project = get().activeProject()
     if (!project) return
     const updated: Project = { ...project, currentPhase: phase, updatedAt: nowISO() }
-    await localStorageAdapter.saveProject(updated)
+    await storage.saveProject(updated)
     set((state) => ({
       projects: state.projects.map((p) => p.id === updated.id ? updated : p),
     }))
   },
 
   addMessage: async (projectId: string, phase: Phase, role: Message['role'], content: string) => {
+    const storage = getStorage()
     const projects = get().projects
     const project = projects.find((p) => p.id === projectId)
     if (!project) return
@@ -183,7 +194,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       messages: [...conversation.messages, message],
     }
 
-    await localStorageAdapter.saveConversation(projectId, updatedConversation)
+    await storage.saveConversation(projectId, updatedConversation)
 
     set((state) => ({
       projects: state.projects.map((p) => {
@@ -198,6 +209,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   clearConversation: async (projectId: string, phase: Phase) => {
+    const storage = getStorage()
     const project = get().projects.find((p) => p.id === projectId)
     if (!project) return
     const updated: Project = {
@@ -207,29 +219,31 @@ export const useAppStore = create<AppStore>((set, get) => ({
       ),
       updatedAt: nowISO(),
     }
-    await localStorageAdapter.saveProject(updated)
+    await storage.saveProject(updated)
     set((state) => ({
       projects: state.projects.map((p) => p.id === projectId ? updated : p),
     }))
   },
 
   updateProjectGithub: async (projectId: string, repoUrl: string, context: string) => {
+    const storage = getStorage()
     const project = get().projects.find((p) => p.id === projectId)
     if (!project) return
     const updated: Project = { ...project, githubRepoUrl: repoUrl, githubContext: context, updatedAt: nowISO() }
-    await localStorageAdapter.saveProject(updated)
+    await storage.saveProject(updated)
     set((state) => ({
       projects: state.projects.map((p) => p.id === projectId ? updated : p),
     }))
   },
 
   addTicket: async (projectId: string, ticketData: Omit<Ticket, 'id' | 'createdAt'>) => {
+    const storage = getStorage()
     const ticket: Ticket = {
       ...ticketData,
       id: createId(),
       createdAt: nowISO(),
     }
-    await localStorageAdapter.saveTicket(projectId, ticket)
+    await storage.saveTicket(projectId, ticket)
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
@@ -241,12 +255,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   updateTicketStatus: async (projectId: string, ticketId: string, status: Ticket['status']) => {
+    const storage = getStorage()
     const project = get().projects.find((p) => p.id === projectId)
     if (!project) return
     const ticket = project.tickets.find((t) => t.id === ticketId)
     if (!ticket) return
     const updated = { ...ticket, status }
-    await localStorageAdapter.updateTicket(projectId, updated)
+    await storage.updateTicket(projectId, updated)
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
@@ -257,7 +272,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   updateTicket: async (projectId: string, ticket: Ticket) => {
-    await localStorageAdapter.updateTicket(projectId, ticket)
+    const storage = getStorage()
+    await storage.updateTicket(projectId, ticket)
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
@@ -268,7 +284,8 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   deleteTicket: async (projectId: string, ticketId: string) => {
-    await localStorageAdapter.deleteTicket(projectId, ticketId)
+    const storage = getStorage()
+    await storage.deleteTicket(projectId, ticketId)
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
@@ -293,13 +310,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   addWorkLog: async (projectId: string, ticketId: string, content: string, author?: string) => {
+    const storage = getStorage()
     const project = get().projects.find((p) => p.id === projectId)
     if (!project) return
     const ticket = project.tickets.find((t) => t.id === ticketId)
     if (!ticket) return
     const log: WorkLog = { id: createId(), content, createdAt: nowISO(), author }
     const updated = { ...ticket, workLogs: [...(ticket.workLogs ?? []), log] }
-    await localStorageAdapter.updateTicket(projectId, updated)
+    await storage.updateTicket(projectId, updated)
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
@@ -310,12 +328,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   deleteWorkLog: async (projectId: string, ticketId: string, logId: string) => {
+    const storage = getStorage()
     const project = get().projects.find((p) => p.id === projectId)
     if (!project) return
     const ticket = project.tickets.find((t) => t.id === ticketId)
     if (!ticket) return
     const updated = { ...ticket, workLogs: (ticket.workLogs ?? []).filter((l) => l.id !== logId) }
-    await localStorageAdapter.updateTicket(projectId, updated)
+    await storage.updateTicket(projectId, updated)
     set((state) => ({
       projects: state.projects.map((p) =>
         p.id === projectId
@@ -326,21 +345,24 @@ export const useAppStore = create<AppStore>((set, get) => ({
   },
 
   createRole: async (name: string, color: string) => {
+    const storage = getStorage()
     const role: Role = { id: createId(), name, color, createdAt: nowISO() }
-    await localStorageAdapter.saveRole(role)
+    await storage.saveRole(role)
     set((state) => ({ roles: [...state.roles, role] }))
     return role
   },
 
   updateRole: async (role: Role) => {
-    await localStorageAdapter.saveRole(role)
+    const storage = getStorage()
+    await storage.saveRole(role)
     set((state) => ({
       roles: state.roles.map((r) => r.id === role.id ? role : r),
     }))
   },
 
   deleteRole: async (id: string) => {
-    await localStorageAdapter.deleteRole(id)
+    const storage = getStorage()
+    await storage.deleteRole(id)
     set((state) => ({
       roles: state.roles.filter((r) => r.id !== id),
       activeRoleId: state.activeRoleId === id ? null : state.activeRoleId,
@@ -350,5 +372,51 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   setActiveRole: (id: string) => {
     set({ activeRoleId: id, activeView: 'role' })
+  },
+
+  createDoc: async (projectId: string, title: string) => {
+    const storage = getStorage()
+    const doc: ProjectDoc = {
+      id: createId(),
+      projectId,
+      title,
+      content: '',
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    }
+    await storage.saveDoc(projectId, doc)
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, docs: [...(p.docs ?? []), doc], updatedAt: nowISO() }
+          : p
+      ),
+    }))
+    return doc
+  },
+
+  updateDoc: async (projectId: string, doc: ProjectDoc) => {
+    const storage = getStorage()
+    const updated = { ...doc, updatedAt: nowISO() }
+    await storage.saveDoc(projectId, updated)
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, docs: (p.docs ?? []).map((d) => d.id === doc.id ? updated : d) }
+          : p
+      ),
+    }))
+  },
+
+  deleteDoc: async (projectId: string, docId: string) => {
+    const storage = getStorage()
+    await storage.deleteDoc(projectId, docId)
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === projectId
+          ? { ...p, docs: (p.docs ?? []).filter((d) => d.id !== docId) }
+          : p
+      ),
+    }))
   },
 }))

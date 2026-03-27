@@ -1,4 +1,4 @@
-import type { Project, Conversation, Ticket, Role } from '@/types'
+import type { Project, Conversation, Ticket, Role, ProjectDoc } from '@/types'
 
 export interface StorageAdapter {
   getProjects(): Promise<Project[]>
@@ -12,4 +12,6 @@ export interface StorageAdapter {
   getRoles(): Promise<Role[]>
   saveRole(r: Role): Promise<void>
   deleteRole(id: string): Promise<void>
+  saveDoc(projectId: string, doc: ProjectDoc): Promise<void>
+  deleteDoc(projectId: string, docId: string): Promise<void>
 }

@@ -158,6 +158,13 @@ export function TicketCard({ ticket, projectId }: { ticket: Ticket; projectId: s
         </button>
       </div>
 
+      {ticket.acceptanceCriteria && (
+        <div className="mt-2 pt-2 border-t border-zinc-800/60">
+          <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider mb-1">完成定義</p>
+          <p className="text-xs text-zinc-500 leading-relaxed whitespace-pre-line">{ticket.acceptanceCriteria}</p>
+        </div>
+      )}
+
       {ticket.contextSnippet && (
         <p className="text-xs text-zinc-600 mt-2 border-l-2 border-zinc-700 pl-2 line-clamp-2 italic">
           {ticket.contextSnippet}

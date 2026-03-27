@@ -41,9 +41,19 @@ export interface Ticket {
   status: TicketStatus
   createdBy: 'user' | 'pm'
   contextSnippet: string
+  acceptanceCriteria?: string
   createdAt: string
   priority?: 'high' | 'medium' | 'low'
   workLogs?: WorkLog[]
+}
+
+export interface ProjectDoc {
+  id: string
+  projectId: string
+  title: string
+  content: string   // markdown
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Project {
@@ -54,6 +64,7 @@ export interface Project {
   currentPhase: Phase
   conversations: Conversation[]
   tickets: Ticket[]
+  docs?: ProjectDoc[]
   githubRepoUrl?: string
   githubContext?: string
 }
@@ -67,6 +78,8 @@ export interface PMAnalyzeRequest {
 export interface PMProposedTicket {
   title: string
   reason: string
+  acceptanceCriteria?: string
+  contextSnippet?: string
   assignTo: string   // role name (matched to Role.id in frontend)
   priority: 'high' | 'medium' | 'low'
 }

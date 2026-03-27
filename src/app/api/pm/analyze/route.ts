@@ -19,8 +19,10 @@ ${roleList}
   "thinking": "分析思路（中文，2-4句）",
   "tickets": [
     {
-      "title": "ticket 標題",
-      "reason": "為什麼需要（一句話）",
+      "title": "ticket 標題（簡潔，10字以內）",
+      "reason": "背景說明（2-4句：為什麼需要、來自哪段對話的結論、完成後帶來什麼效益）",
+      "acceptanceCriteria": "完成定義（2-3條具體可驗證的條件，用 \\n 分隔，每條以 - 開頭）",
+      "contextSnippet": "從對話中直接引用的關鍵原文（保留說話者口吻，1-2句，若無則留空字串）",
       "assignTo": "角色名稱（必須是上方清單中的其中一個）",
       "priority": "high | medium | low"
     }
@@ -56,7 +58,7 @@ ${JSON.stringify(tickets, null, 2)}`
   try {
     const message = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1000,
+      max_tokens: 2000,
       system: buildSystemPrompt(roles ?? []),
       messages: [{ role: 'user', content: userContent }],
     })
