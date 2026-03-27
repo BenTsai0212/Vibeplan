@@ -9,14 +9,17 @@
 
 ---
 
-## 核心資料結構
+## 核心資料結構（目前實作版本）
 
 ```
 Project
 ├── id, name, createdAt, updatedAt
 ├── currentPhase: 'research' | 'plan' | 'execute' | 'review'
 ├── conversations: Conversation[]   // 每個 phase 各自獨立
-└── tickets: Ticket[]
+├── tickets: Ticket[]
+├── docs: ProjectDoc[]              // 專案文件區
+├── githubRepoUrl?: string          // 連結的 GitHub repo
+└── githubContext?: string          // 從 GitHub 抓取的快照（README + 檔案結構 + 關鍵檔案）
 
 Conversation
 ├── id, projectId
@@ -32,75 +35,88 @@ Message
 Ticket
 ├── id, projectId
 ├── title: string
-├── reason: string               // 為什麼需要這個 ticket
-├── phase: Phase                 // 在哪個階段建立
-├── assignedTo: AgentId | null
+├── reason: string                  // 背景說明（2-4句）
+├── acceptanceCriteria?: string     // 完成定義（PM 開單時填入）
+├── phase: Phase
+├── assignedTo: string | null       // Role.id（動態角色，非硬編碼）
 ├── status: 'todo' | 'in_progress' | 'done'
-├── createdBy: 'user' | 'pm'    // 手動建立 or PM agent 開單
-├── contextSnippet: string       // 來源對話摘要
+├── createdBy: 'user' | 'pm'
+├── contextSnippet: string          // 來源對話引用原文
+├── priority?: 'high' | 'medium' | 'low'
+├── workLogs?: WorkLog[]            // Slack-style 工作進度記錄
 └── createdAt
+
+WorkLog
+├── id, content, createdAt
+└── author?: string
+
+Role（動態角色，可自訂）
+├── id, name, color
+└── createdAt
+
+ProjectDoc
+├── id, projectId
+├── title: string
+├── content: string                 // markdown 純文字
+├── createdAt, updatedAt
 ```
 
 ---
 
 ## Agents 系統
 
-### 四個流程階段 Agent（對話用）
+### 四個流程階段 Agent（對話用，均串接 Claude API 串流）
 
-每個階段有專屬 system prompt，LLM 扮演不同角色：
+每個階段有詳細的 system prompt，包含角色定義、行為規範、明確的「不做的事」：
 
 | Phase | 角色 | 職責 |
 |-------|------|------|
-| research | 好奇的提問者 | 透過提問釐清模糊想法，不給答案 |
-| plan | 嚴謹的架構師 | 挑戰假設、找盲點、產出實作計劃 |
-| execute | 務實的工程師 | 聚焦可執行細節，給出具體 code |
-| review | 挑剔的 Reviewer | 找安全疑慮、edge case、技術債 |
+| research | 好奇的提問者 | 只問問題不給答案，每輪最多 2 問，釐清模糊想法 |
+| plan | 嚴謹的架構師 | 先質疑假設再建議，提供 trade-offs，ASCII 架構圖 |
+| execute | 務實的工程師 | 直接給完整可執行程式碼，不給偽代碼 |
+| review | 挑剔的 Reviewer | 按 🔴🟡🟢 分類嚴重度，每個問題說明「是什麼→為什麼→怎麼改」 |
 
-### 四個專業 Agent（ticket 分析用）
+#### Context 注入機制
+- **GitHub context**：Sync 後注入 system prompt，agent 被告知要主動參考（README + 檔案樹 + 關鍵檔案內容）
+- **跨 phase 歷史**：每次對話帶入其他 phase 最後 8 則訊息作為背景，agent 了解整個專案來龍去脈
 
-| Agent | ID | 職責 |
-|-------|----|------|
-| 產品經理 PM | pm | **唯一串 Claude API**。讀取 context 開單、assign |
-| 前端工程師 | fe | UI 元件、狀態管理、效能 |
-| 後端工程師 | be | API 設計、資料庫、安全性 |
-| UI/UX 設計師 | ux | 使用者流程、視覺設計、一致性 |
+### PM Agent（Ticket 分析用）
+
+- 唯一串接 Claude API 的分析性 agent
+- 輸出豐富 ticket：`title / reason（2-4句）/ acceptanceCriteria / contextSnippet / assignTo / priority`
+- assign 的角色為動態 Role（由用戶自訂），非硬編碼
+
+### People / Roles 系統
+
+- 角色可自訂（名稱、顏色），左側欄 People 區管理
+- 預設四個角色：工程師、設計師、行銷、市調
+- 點擊角色 → 跨專案 RoleBoard，顯示該角色被指派的所有工作
+- 每張 Ticket 可展開 Slack-style Work Log，記錄執行歷史
 
 ---
 
-## PM Agent 規格（最重要）
+## PM Agent 規格
 
 ### 觸發方式
-手動點「請 PM 整理工作」按鈕。
+手動點「請 PM 整理工作」按鈕（在 Ticket panel header）。
 
 ### 執行流程
-1. 讀取當前專案的對話記錄（所有 phase）+ 現有 tickets
+1. 讀取當前專案所有 phase 的對話記錄 + 現有 tickets
 2. 呼叫 Claude API 分析
-3. 彈出確認 panel，顯示：PM 分析思路 + 提議的新 tickets
+3. 彈出確認 panel：PM 分析思路 + 提議的新 tickets（可展開詳情）
 4. 使用者勾選要建立哪幾張 → 點確認 → 建立
 
-### PM System Prompt
-```
-你是一位資深產品經理，負責分析專案進度並規劃工作分配。
-
-任務：
-1. 讀取「專案對話記錄」和「現有 tickets」
-2. 找出目前缺少的工作
-3. 為每個新工作寫清楚的 ticket，決定 assign 給哪個 agent
-
-可 assign 的 agent：
-- frontend（前端工程師）：UI 元件、互動、樣式
-- backend（後端工程師）：API、資料庫、邏輯
-- ux（UI/UX 設計師）：使用流程、視覺設計
-- pm（產品經理）：需求釐清、優先序決策
-
-回應格式（只回傳 JSON，不要其他文字）：
+### PM 輸出格式
+```json
 {
-  "thinking": "分析思路（中文，2-4句）",
+  "thinking": "分析思路（2-4句）",
   "tickets": [
     {
-      "title": "ticket 標題",
-      "reason": "為什麼需要（一句話）",
-      "assignTo": "frontend | backend | ux | pm",
+      "title": "ticket 標題（10字以內）",
+      "reason": "背景說明（2-4句：為什麼需要、來自哪段對話、完成後效益）",
+      "acceptanceCriteria": "完成定義（2-3條可驗證條件，- 開頭）",
+      "contextSnippet": "從對話直接引用的關鍵原文（或空字串）",
+      "assignTo": "角色名稱（必須符合可用角色清單）",
       "priority": "high | medium | low"
     }
   ]
@@ -108,103 +124,95 @@ Ticket
 ```
 
 ### API 規格
-- Model: `claude-haiku-4-5-20251001`（成本低，ticket 分析不需要最強模型）
-- Max tokens: 1000
-- 注意：API key 必須在後端處理，不能暴露在前端
+- Model: `claude-haiku-4-5-20251001`
+- Max tokens: 2000
+- API key 在後端處理，不暴露前端
 
 ---
 
-## 功能清單（MVP 範圍）
+## 功能清單（實作進度）
 
-### 必做
-- [ ] 專案 CRUD（建立、切換、列表）
-- [ ] 四個 phase tab，各自獨立的對話串
-- [ ] 每個 phase 有對應的 system prompt
-- [ ] Ticket 建立、完成、刪除
-- [ ] Ticket assign 給 agent
-- [ ] PM agent 串接 Claude API（開單 + assign）
-- [ ] PM 開單後需用戶確認才建立
-- [ ] 對話訊息可轉成 ticket（附帶 context snippet）
+### 已完成 ✅
+- [x] 專案 CRUD（建立、切換、列表、刪除）
+- [x] 四個 phase tab，各自獨立對話串
+- [x] 每個 phase 有詳細 system prompt（含行為規範）
+- [x] AI 對話串流（SSE，逐字輸出）
+- [x] Refresh Session 按鈕（清空當前 phase 對話）
+- [x] Ticket 建立、完成、刪除、inline 編輯
+- [x] Ticket 按 phase 分組顯示（可展開/收合）
+- [x] Ticket assign 給動態角色
+- [x] PM agent 串接 Claude API（開單 + assign）
+- [x] PM 開單後需用戶確認才建立
+- [x] PM 輸出豐富 ticket 內容（reason + acceptanceCriteria + contextSnippet）
+- [x] 對話訊息可轉成 ticket
+- [x] GitHub repo 連結（Sync 抓取 README、檔案樹、關鍵檔案）
+- [x] GitHub context 注入 AI 對話 system prompt
+- [x] 跨 phase 對話歷史注入（agent 了解整個專案脈絡）
+- [x] 動態 People/Roles 系統（可自訂名稱、顏色）
+- [x] 跨專案 RoleBoard（點角色看所有被指派的工作）
+- [x] Ticket Work Log（Slack-style 執行歷史記錄）
+- [x] Project Docs 區（markdown 文件，Docs tab）
+- [x] RWD（桌面三欄、手機漢堡選單 + bottom tab bar）
+- [x] Zeabur 部署（Dockerfile multi-stage build）
+- [x] Supabase adapter（寫好，待用戶設定 env vars 啟用）
 
-### 暫緩
+### 暫緩 / 未來
 - 多專案之間的關聯
-- Ticket 優先序 / 截止日期
-- 對話跨 phase 參考
+- Ticket 截止日期
 - Agent skill 匯入（GitHub repo YAML format）
-- 雲端同步（先用 localStorage）
+- Docs 區 markdown 渲染預覽
+- 自動摘要跨 phase 重點（目前是帶原始訊息）
 
 ---
 
-## 技術決策
+## 技術架構
 
-### 資料儲存
-**暫時用 localStorage**，key 設計要考慮之後遷移到雲端 DB 的擴展性。
+### Tech Stack
+- **Frontend**: Next.js 16 (App Router) + TypeScript + Tailwind CSS v4
+- **State**: Zustand
+- **Storage**: localStorage（預設）→ Supabase（設定 env vars 後自動切換）
+- **AI**: Anthropic SDK，`claude-haiku-4-5-20251001`，SSE streaming
+- **部署**: Zeabur，Dockerfile multi-stage (node:20-alpine)
 
-建議用抽象層包一層：
+### Storage 抽象層
 ```typescript
 interface StorageAdapter {
-  getProjects(): Promise<Project[]>
-  saveProject(p: Project): Promise<void>
-  getTickets(projectId: string): Promise<Ticket[]>
-  saveTicket(t: Ticket): Promise<void>
-  // ...
+  getProjects() / saveProject() / deleteProject()
+  saveConversation() / saveTicket() / updateTicket() / deleteTicket()
+  getRoles() / saveRole() / deleteRole()
+  saveDoc() / deleteDoc()
 }
 ```
+工廠函式 `getStorage()` 根據 `NEXT_PUBLIC_SUPABASE_URL` 自動選擇 adapter。
 
-### API 呼叫
-PM agent 的 Claude API 呼叫**必須走後端**，不能在前端直接呼叫（API key 安全性）。
-
-建議架構：
+### API Routes
 ```
-前端 → POST /api/pm/analyze → 後端呼叫 Claude API → 回傳 tickets JSON
+POST /api/chat                  → AI 對話串流（SSE）
+POST /api/pm/analyze            → PM 開單分析
+POST /api/github/fetch-context  → GitHub repo 快照
 ```
 
-### Tech Stack（建議，可調整）
-- Frontend: Next.js + TypeScript
-- Styling: Tailwind CSS
-- Storage: localStorage → 之後換 Supabase
-- Backend API: Next.js API routes（輕量）
+### Supabase 資料表
+`projects / conversations / messages / tickets / work_logs / roles / project_docs`
+Migration SQL: `supabase/schema.sql`
 
 ---
 
-## UI 設計參考
+## 啟用 Supabase
 
-已有可互動的 HTML prototype（`vibe-planner-v3.html`），設計語言：
-- 深色主題，工具感
-- 字體：Berkeley Mono（等寬）+ Instrument Serif（標題）
-- 色系：accent `#7c6dfa`，各 phase 各有顏色
-
-Phase 顏色對應：
-- research: `#60a5fa`（藍）
-- plan: `#a78bfa`（紫）
-- execute: `#4ade80`（綠）
-- review: `#fbbf24`（黃）
-- PM: `#a78bfa`（與 plan 同色）
+1. 在 [supabase.com](https://supabase.com) 建立新 Project
+2. Dashboard → SQL Editor → 執行 `supabase/schema.sql`
+3. 在 `.env.local` 填入：
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+ANTHROPIC_API_KEY=your_key
+```
+4. 重啟 dev server，資料自動寫入 Supabase
 
 ---
 
-## 開發建議順序
-
-```
-Phase 1 — 骨架
-  1. 專案資料結構 + localStorage adapter
-  2. 專案列表 + 建立專案
-  3. Phase tab 切換 + 各 phase system prompt
-
-Phase 2 — 核心功能
-  4. 對話串（每個 phase 獨立）
-  5. Ticket CRUD + assign agent
-  6. 對話轉 ticket
-
-Phase 3 — PM Agent
-  7. 後端 API route（/api/pm/analyze）
-  8. PM 分析 + 確認 panel
-  9. PM 開單建立 tickets
-```
-
----
-
-## 常用指令（待補）
+## 常用指令
 
 ```bash
 # 開發
@@ -216,16 +224,30 @@ npm run typecheck
 # Lint
 npm run lint
 
-# 測試
-npm run test
+# Build
+npm run build
 ```
 
 ---
 
-## 備註
+## 設計規範
 
-這個專案從一段模糊的想法開始，經過對話逐步落地：
-- 定位：個人用的 vibe coding 思考外腦
-- 最重要的功能：PM agent 根據對話 context 主動開單 + assign
-- 其他 agent（前端、後端、UX）目前不串 API，收到 ticket 後給建議即可
-- 設計原則：你主導決策，agent 輔助分析和執行機械性工作
+- 深色主題，工具感
+- 字體：等寬字體（font-mono）為主
+- Accent: `#7c6dfa`
+
+Phase 顏色：
+- research: `#60a5fa`（藍）
+- plan: `#a78bfa`（紫）
+- execute: `#4ade80`（綠）
+- review: `#fbbf24`（黃）
+- PM / Docs: `#a78bfa`（紫）
+
+---
+
+## 設計原則
+
+- 你主導決策，agent 輔助分析和執行機械性工作
+- Research agent 只問問題，不給答案
+- Execute agent 直接給可執行程式碼，不給虛擬碼
+- PM agent 開的每張 ticket 都要能讓執行者獨立理解背景和完成定義
